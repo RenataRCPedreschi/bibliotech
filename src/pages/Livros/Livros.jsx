@@ -1,9 +1,24 @@
 import { useEffect, useState } from "react";
-import { Button, Container, Table, Modal, Tooltip, OverlayTrigger } from "react-bootstrap";
+import {
+  Button,
+  Container,
+  Table,
+  Modal,
+  Tooltip,
+  OverlayTrigger,
+  Pagination,
+} from "react-bootstrap";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 import { Loader } from "../../components/Loader/Loader";
-import { deleteLivro, getLivros } from "../../firebase/livros";
+import {
+  avancarPagina,
+  deleteLivro,
+  getLivro,
+  getLivros,
+  paginaInicial,
+  voltarPagina,
+} from "../../firebase/livros";
 import "./Livros.css";
 import { ThemeColorContext } from "../../contexts/ThemeColorContext";
 import { DetalhesLivroModal } from "../../components/DetalhesLivroModal/DetalhesLivroModal";
@@ -14,16 +29,59 @@ export function Livros() {
   const [show, setShow] = useState(false);
   const [livro, setLivro] = useState(null);
   const [search, setSearch] = useState(""); //busca de livros
+  const [firstObject, setFirstObject] = useState(null);
+  const [lastObject, setLastObject] = useState(null);
+  const [totalLivros, setTotalLivros] = useState(0);
+  const [count, setCount] = useState(1);
 
   // Estado para mostrar ou ocultar o modal de detalhes do livro
   const [showDetalhesLivro, setShowDetalhesLivro] = useState(false);
 
   const tooltipAddLivro = <Tooltip>Clique para adicionar um livro</Tooltip>;
   const tooltipEditarLivro = <Tooltip>Clique para Editar</Tooltip>;
-  const tooltipApagarLivro = <Tooltip>Clique para apagar o livro da biblioteca</Tooltip>;
-  const tooltipDetalhesLivro = <Tooltip>Clique para ver mais detalhes do livro</Tooltip>;
+  const tooltipApagarLivro = (
+    <Tooltip>Clique para apagar o livro da biblioteca</Tooltip>
+  );
+  const tooltipDetalhesLivro = (
+    <Tooltip>Clique para ver mais detalhes do livro</Tooltip>
+  );
 
+  function avancarPag() {
+    avancarPagina(lastObject).then((res) => {
+      setLivros(res);
+      setFirstObject(res[0]);
+      setLastObject(res[2]);
+    });
+  }
 
+  function voltarPag() {
+    voltarPagina(firstObject).then((res) => {
+      setLivros(res);
+      setFirstObject(res[0]);
+      setLastObject(res[2]);
+    });
+  }
+
+  useEffect(() => {
+    initializeTable();
+  }, [search]); // search começa vazio então mostra todos os livros
+  
+  useEffect(() => {
+    getLivros().then((busca) => {
+      setLivros(busca);
+      setTotalLivros(busca.length);
+    });
+
+    paginaInicial().then((res) => {
+      setFirstObject(res[0]);
+      setLastObject(res[2]);
+      setLivros(res);
+    });
+
+   
+  }, []);
+
+ 
   useEffect(() => {
     initializeTable();
   }, [search]); // search começa vazio então mostra todos os livros
@@ -89,11 +147,16 @@ export function Livros() {
         <div className="d-flex justify-content-between align-items-center">
           <h1>Livros</h1>
           <OverlayTrigger overlay={tooltipAddLivro}>
-          <Button as={Link} to="/livros/adicionar" 
-          className={temaEscuro === "dark" ? "bg-dark text-white" : "bg-success"}
-          variant="bg-dark" >
-            Adicionar Livro
-          </Button>
+            <Button
+              as={Link}
+              to="/livros/adicionar"
+              className={
+                temaEscuro === "dark" ? "bg-dark text-white" : "bg-success"
+              }
+              variant="bg-dark"
+            >
+              Adicionar Livro
+            </Button>
           </OverlayTrigger>
         </div>
         {/* Campo de busca INICIO */}
@@ -147,41 +210,50 @@ export function Livros() {
                     <td>{livro.categoria}</td>
                     <td>{livro.isbn}</td>
                     <td onClick={() => handleShow(livro)}>
-                      <img className="imagensLivro" src={livro.urlCapa} alt={livro.titulo} />
+                      <img
+                        className="imagensLivro"
+                        src={livro.urlCapa}
+                        alt={livro.titulo}
+                      />
                     </td>
                     <td>
                       <div className="d-flex flex-column mb-3">
-                    <OverlayTrigger overlay={tooltipEditarLivro}>
-                      <Button
-                        as={Link}
-                        to={`/livros/editar/${livro.id}`}
-                        variant="warning"
-                        size="sm"
-                        className="mt-2"
-                      >
-                        <i className="bi bi-pencil-fill"></i>
-                      </Button>
-                      </OverlayTrigger>
+                        <OverlayTrigger overlay={tooltipEditarLivro}>
+                          <Button
+                            as={Link}
+                            to={`/livros/editar/${livro.id}`}
+                            variant="warning"
+                            size="sm"
+                            className="mt-2"
+                          >
+                            <i className="bi bi-pencil-fill"></i>
+                          </Button>
+                        </OverlayTrigger>
 
-                      <OverlayTrigger overlay={tooltipApagarLivro}>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        className="mt-2"
-                        onClick={() => onDeleteLivro(livro.id, livro.titulo)}
-                      >
-                        <i className="bi bi-trash3-fill"></i>
-                      </Button>
-                      </OverlayTrigger>
-                      <OverlayTrigger overlay={tooltipDetalhesLivro}>
-                      <Button onClick={() => openDetalhesLivro(livro)} 
-                      size="sm"
-                      variant="success"
-                      className="mt-2"
-                      >
-                        <i className="bi bi-info-lg"></i>
-                      </Button>
-                      </OverlayTrigger>
+                        <OverlayTrigger overlay={tooltipApagarLivro}>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            className="mt-2"
+                            onClick={() =>
+                              onDeleteLivro(livro.id, livro.titulo)
+                            }
+                          >
+                            <i className="bi bi-trash3-fill"></i>
+                          </Button>
+                        </OverlayTrigger>
+                        <OverlayTrigger overlay={tooltipDetalhesLivro}>
+                          <Button
+                            onClick={() => openDetalhesLivro(livro)}
+                            size="sm"
+                            variant="success"
+                            className="mt-2"
+                          >
+                            <i className="bi bi-info-lg"></i>
+                          </Button>
+                        </OverlayTrigger>
+
+                     
                       </div>
                     </td>
                   </tr>
@@ -190,6 +262,27 @@ export function Livros() {
             </tbody>
           </Table>
         )}
+
+           {/* Paginação */}
+           <Pagination className="justify-content-center">
+                          <Pagination.First
+                            disabled={count <= 1}
+                            onClick={() => {
+                              voltarPag();
+                              setCount(count - 1);
+                            }}
+                          />
+
+                          <Pagination.Item>{count}</Pagination.Item>
+
+                          <Pagination.Last
+                            disabled={count >= totalLivros / 1}
+                            onClick={() => {
+                              avancarPag();
+                              setCount(count + 1);
+                            }}
+                          />
+                        </Pagination>
       </Container>
       <>
         <Modal className="text-center" show={show} onHide={handleClose}>
@@ -199,7 +292,11 @@ export function Livros() {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <img className="imagensLivroDestaque" src={livro?.urlCapa} alt={livro?.titulo} />
+            <img
+              className="imagensLivroDestaque"
+              src={livro?.urlCapa}
+              alt={livro?.titulo}
+            />
           </Modal.Body>
         </Modal>
       </>

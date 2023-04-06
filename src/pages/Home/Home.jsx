@@ -41,7 +41,7 @@ export function Home() {
     });
 
   }, []);
-  console.log(emprestimos)
+
 
   useEffect(() => {
     if (totalUsers && emprestimosPendentes && emprestimosDevolvidos) {

@@ -2,8 +2,14 @@ import {
     addDoc,
     deleteDoc,
     doc,
+    endBefore,
     getDoc,
     getDocs,
+    limit,
+    limitToLast,
+    orderBy,
+    query,
+    startAfter,
     updateDoc
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -42,3 +48,58 @@ export async function uploadCapaLivro(imagem) {
     const result = await uploadBytes(imageRef, imagem);
     return await getDownloadURL(result.ref);
 }
+
+
+
+/* PAGINAÇÃO */
+export async function paginaInicial() {
+    const primeiraPagina = query(
+      livrosCollection,
+      orderBy("livros"),
+      limit(3)
+    );
+    const livrosSnapshot = await getDocs(primeiraPagina);
+    const livros = [];
+  
+    livrosSnapshot.forEach((doc) => {
+    livros.push({ ...doc.data(), id: doc.id });
+    });
+  
+    return livros;
+  }
+  
+  export async function avancarPagina(lastObject) {
+    const proxima = query(
+      livrosCollection,
+      orderBy("livros"),
+      startAfter(lastObject.livros),
+      limit(4)
+    );
+  
+    const livrosSnapshot = await getDocs(proxima);
+    const livros = [];
+    livrosSnapshot.forEach((doc) => {
+    livros.push({ ...doc.data(), id: doc.id });
+    });
+  
+    return livros;
+  }
+  
+  export async function voltarPagina(firstObject) {
+    const voltar = query(
+      livrosCollection,
+      orderBy("dataEmprestimo"),
+      endBefore(firstObject.dataEmprestimo),
+      limitToLast(4)
+    );
+    const livrosSnapshot = await getDocs(voltar);
+    const livros = [];
+    livrosSnapshot.forEach((doc) => {
+    livros.push({ ...doc.data(), id: doc.id });
+    });
+    return livros;
+  }
+  
+
+  
+  
